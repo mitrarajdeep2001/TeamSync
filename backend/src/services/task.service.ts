@@ -1,3 +1,4 @@
+import redis from "../config/redis.config";
 import { TaskPriorityEnum, TaskStatusEnum } from "../enums/task.enum";
 import MemberModel from "../models/member.model";
 import ProjectModel from "../models/project.model";
@@ -15,7 +16,7 @@ export const createTaskService = async (
     status: string;
     assignedTo?: string | null;
     dueDate?: string;
-  }
+  },
 ) => {
   const { title, description, priority, status, assignedTo, dueDate } = body;
 
@@ -23,7 +24,7 @@ export const createTaskService = async (
 
   if (!project || project.workspace.toString() !== workspaceId.toString()) {
     throw new NotFoundException(
-      "Project not found or does not belong to this workspace"
+      "Project not found or does not belong to this workspace",
     );
   }
   if (assignedTo) {
@@ -50,6 +51,9 @@ export const createTaskService = async (
 
   await task.save();
 
+  await redis.del(`workspace:analytics:${workspaceId}`);
+  await redis.del(`workspace:project:analytics:${workspaceId}:${projectId}`);
+
   return { task };
 };
 
@@ -64,13 +68,13 @@ export const updateTaskService = async (
     status: string;
     assignedTo?: string | null;
     dueDate?: string;
-  }
+  },
 ) => {
   const project = await ProjectModel.findById(projectId);
 
   if (!project || project.workspace.toString() !== workspaceId.toString()) {
     throw new NotFoundException(
-      "Project not found or does not belong to this workspace"
+      "Project not found or does not belong to this workspace",
     );
   }
 
@@ -78,7 +82,7 @@ export const updateTaskService = async (
 
   if (!task || task.project.toString() !== projectId.toString()) {
     throw new NotFoundException(
-      "Task not found or does not belong to this project"
+      "Task not found or does not belong to this project",
     );
   }
 
@@ -87,7 +91,7 @@ export const updateTaskService = async (
     {
       ...body,
     },
-    { new: true }
+    { new: true },
   );
 
   if (!updatedTask) {
@@ -110,7 +114,7 @@ export const getAllTasksService = async (
   pagination: {
     pageSize: number;
     pageNumber: number;
-  }
+  },
 ) => {
   const query: Record<string, any> = {
     workspace: workspaceId,
@@ -173,13 +177,13 @@ export const getAllTasksService = async (
 export const getTaskByIdService = async (
   workspaceId: string,
   projectId: string,
-  taskId: string
+  taskId: string,
 ) => {
   const project = await ProjectModel.findById(projectId);
 
   if (!project || project.workspace.toString() !== workspaceId.toString()) {
     throw new NotFoundException(
-      "Project not found or does not belong to this workspace"
+      "Project not found or does not belong to this workspace",
     );
   }
 
@@ -198,7 +202,7 @@ export const getTaskByIdService = async (
 
 export const deleteTaskService = async (
   workspaceId: string,
-  taskId: string
+  taskId: string,
 ) => {
   const task = await TaskModel.findOneAndDelete({
     _id: taskId,
@@ -207,7 +211,7 @@ export const deleteTaskService = async (
 
   if (!task) {
     throw new NotFoundException(
-      "Task not found or does not belong to the specified workspace"
+      "Task not found or does not belong to the specified workspace",
     );
   }
 

@@ -3,6 +3,8 @@ import ProjectModel from "../models/project.model";
 import TaskModel from "../models/task.model";
 import { NotFoundException } from "../utils/appError";
 import { TaskStatusEnum } from "../enums/task.enum";
+import redis from "../config/redis.config";
+import { config } from "../config/app.config";
 
 export const createProjectService = async (
   userId: string,
@@ -11,7 +13,7 @@ export const createProjectService = async (
     emoji?: string;
     name: string;
     description?: string;
-  }
+  },
 ) => {
   const project = new ProjectModel({
     ...(body.emoji && { emoji: body.emoji }),
@@ -23,16 +25,32 @@ export const createProjectService = async (
 
   await project.save();
 
+  await redis.incr(`workspace:projects:${workspaceId}:version`);
+
   return { project };
 };
 
 export const getProjectsInWorkspaceService = async (
   workspaceId: string,
   pageSize: number,
-  pageNumber: number
+  pageNumber: number,
 ) => {
-  // Step 1: Find all projects in the workspace
+  const version =
+    (await redis.get(`workspace:projects:${workspaceId}:version`)) || "1";
 
+  const cacheKey = `workspace:projects:${workspaceId}:v${version}:page:${pageNumber}:size:${pageSize}`;
+
+  /** 1️⃣ Try Redis first */
+  const cached = await redis.get(cacheKey);
+
+  if (cached) {    
+    return {
+      ...JSON.parse(cached),
+      source: "cache",
+    };
+  }
+
+  /** 2️⃣ DB queries */
   const totalCount = await ProjectModel.countDocuments({
     workspace: workspaceId,
   });
@@ -49,12 +67,25 @@ export const getProjectsInWorkspaceService = async (
 
   const totalPages = Math.ceil(totalCount / pageSize);
 
-  return { projects, totalCount, totalPages, skip };
+  const response = {
+    projects,
+    totalCount,
+    totalPages,
+    skip,
+  };
+
+  /** 3️⃣ Store in Redis */
+  await redis.set(cacheKey, JSON.stringify(response), "EX", config.DEFAULT_TTL);
+
+  return {
+    ...response,
+    source: "db",
+  };
 };
 
 export const getProjectByIdAndWorkspaceIdService = async (
   workspaceId: string,
-  projectId: string
+  projectId: string,
 ) => {
   const project = await ProjectModel.findOne({
     _id: projectId,
@@ -63,7 +94,7 @@ export const getProjectByIdAndWorkspaceIdService = async (
 
   if (!project) {
     throw new NotFoundException(
-      "Project not found or does not belong to the specified workspace"
+      "Project not found or does not belong to the specified workspace",
     );
   }
 
@@ -72,19 +103,32 @@ export const getProjectByIdAndWorkspaceIdService = async (
 
 export const getProjectAnalyticsService = async (
   workspaceId: string,
-  projectId: string
+  projectId: string,
 ) => {
+  const cacheKey = `workspace:project:analytics:${workspaceId}:${projectId}`;
+
+  /** 1️⃣ Try Redis first */
+  const cached = await redis.get(cacheKey);
+
+  if (cached) {
+    return {
+      analytics: JSON.parse(cached),
+      source: "cache",
+    };
+  }
+
+  /** 2️⃣ Validate project ownership */
   const project = await ProjectModel.findById(projectId);
 
   if (!project || project.workspace.toString() !== workspaceId.toString()) {
     throw new NotFoundException(
-      "Project not found or does not belong to this workspace"
+      "Project not found or does not belong to this workspace",
     );
   }
 
   const currentDate = new Date();
 
-  //USING Mongoose aggregate
+  /** 3️⃣ Aggregation */
   const taskAnalytics = await TaskModel.aggregate([
     {
       $match: {
@@ -98,20 +142,14 @@ export const getProjectAnalyticsService = async (
           {
             $match: {
               dueDate: { $lt: currentDate },
-              status: {
-                $ne: TaskStatusEnum.DONE,
-              },
+              status: { $ne: TaskStatusEnum.DONE },
             },
           },
-          {
-            $count: "count",
-          },
+          { $count: "count" },
         ],
         completedTasks: [
           {
-            $match: {
-              status: TaskStatusEnum.DONE,
-            },
+            $match: { status: TaskStatusEnum.DONE },
           },
           { $count: "count" },
         ],
@@ -127,11 +165,19 @@ export const getProjectAnalyticsService = async (
     completedTasks: _analytics.completedTasks[0]?.count || 0,
   };
 
+  /** 4️⃣ Store in Redis */
+  await redis.set(
+    cacheKey,
+    JSON.stringify(analytics),
+    "EX",
+    config.DEFAULT_TTL,
+  );
+
   return {
     analytics,
+    source: "db",
   };
 };
-
 export const updateProjectService = async (
   workspaceId: string,
   projectId: string,
@@ -139,7 +185,7 @@ export const updateProjectService = async (
     emoji?: string;
     name: string;
     description?: string;
-  }
+  },
 ) => {
   const { name, emoji, description } = body;
 
@@ -150,7 +196,7 @@ export const updateProjectService = async (
 
   if (!project) {
     throw new NotFoundException(
-      "Project not found or does not belong to the specified workspace"
+      "Project not found or does not belong to the specified workspace",
     );
   }
 
@@ -165,7 +211,7 @@ export const updateProjectService = async (
 
 export const deleteProjectService = async (
   workspaceId: string,
-  projectId: string
+  projectId: string,
 ) => {
   const project = await ProjectModel.findOne({
     _id: projectId,
@@ -174,7 +220,7 @@ export const deleteProjectService = async (
 
   if (!project) {
     throw new NotFoundException(
-      "Project not found or does not belong to the specified workspace"
+      "Project not found or does not belong to the specified workspace",
     );
   }
 

@@ -8,6 +8,8 @@ import { BadRequestException, NotFoundException } from "../utils/appError";
 import TaskModel from "../models/task.model";
 import { TaskStatusEnum } from "../enums/task.enum";
 import ProjectModel from "../models/project.model";
+import redis from "../config/redis.config";
+import { config } from "../config/app.config";
 
 //********************************
 // CREATE NEW WORKSPACE
@@ -17,7 +19,7 @@ export const createWorkspaceService = async (
   body: {
     name: string;
     description?: string | undefined;
-  }
+  },
 ) => {
   const { name, description } = body;
 
@@ -115,22 +117,33 @@ export const getWorkspaceMembersService = async (workspaceId: string) => {
 };
 
 export const getWorkspaceAnalyticsService = async (workspaceId: string) => {
+  const cacheKey = `workspace:analytics:${workspaceId}`;
+
+  /** 1️⃣ Try cache first */
+  const cachedAnalytics = await redis.get(cacheKey);
+
+  if (cachedAnalytics) {
+    return {
+      analytics: JSON.parse(cachedAnalytics),
+      source: "cache",
+    };
+  }
+
+  /** 2️⃣ Fetch from DB */
   const currentDate = new Date();
 
-  const totalTasks = await TaskModel.countDocuments({
-    workspace: workspaceId,
-  });
-
-  const overdueTasks = await TaskModel.countDocuments({
-    workspace: workspaceId,
-    dueDate: { $lt: currentDate },
-    status: { $ne: TaskStatusEnum.DONE },
-  });
-
-  const completedTasks = await TaskModel.countDocuments({
-    workspace: workspaceId,
-    status: TaskStatusEnum.DONE,
-  });
+  const [totalTasks, overdueTasks, completedTasks] = await Promise.all([
+    TaskModel.countDocuments({ workspace: workspaceId }),
+    TaskModel.countDocuments({
+      workspace: workspaceId,
+      dueDate: { $lt: currentDate },
+      status: { $ne: TaskStatusEnum.DONE },
+    }),
+    TaskModel.countDocuments({
+      workspace: workspaceId,
+      status: TaskStatusEnum.DONE,
+    }),
+  ]);
 
   const analytics = {
     totalTasks,
@@ -138,13 +151,24 @@ export const getWorkspaceAnalyticsService = async (workspaceId: string) => {
     completedTasks,
   };
 
-  return { analytics };
+  /** 3️⃣ Store in Redis */
+  await redis.set(
+    cacheKey,
+    JSON.stringify(analytics),
+    "EX",
+    config.DEFAULT_TTL,
+  );
+
+  return {
+    analytics,
+    source: "db",
+  };
 };
 
 export const changeMemberRoleService = async (
   workspaceId: string,
   memberId: string,
-  roleId: string
+  roleId: string,
 ) => {
   const workspace = await WorkspaceModel.findById(workspaceId);
   if (!workspace) {
@@ -179,7 +203,7 @@ export const changeMemberRoleService = async (
 export const updateWorkspaceByIdService = async (
   workspaceId: string,
   name: string,
-  description?: string
+  description?: string,
 ) => {
   const workspace = await WorkspaceModel.findById(workspaceId);
   if (!workspace) {
@@ -198,23 +222,22 @@ export const updateWorkspaceByIdService = async (
 
 export const deleteWorkspaceService = async (
   workspaceId: string,
-  userId: string
+  userId: string,
 ) => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
-    const workspace = await WorkspaceModel.findById(workspaceId).session(
-      session
-    );
+    const workspace =
+      await WorkspaceModel.findById(workspaceId).session(session);
     if (!workspace) {
       throw new NotFoundException("Workspace not found");
     }
 
     // Check if the user owns the workspace
-    if (!workspace.owner.equals(new mongoose.Types.ObjectId(userId))) { 
+    if (!workspace.owner.equals(new mongoose.Types.ObjectId(userId))) {
       throw new BadRequestException(
-        "You are not authorized to delete this workspace"
+        "You are not authorized to delete this workspace",
       );
     }
 
@@ -224,7 +247,7 @@ export const deleteWorkspaceService = async (
     }
 
     await ProjectModel.deleteMany({ workspace: workspace._id }).session(
-      session
+      session,
     );
     await TaskModel.deleteMany({ workspace: workspace._id }).session(session);
 
@@ -235,7 +258,7 @@ export const deleteWorkspaceService = async (
     // Update the user's currentWorkspace if it matches the deleted workspace
     if (user?.currentWorkspace?.equals(workspaceId)) {
       const memberWorkspace = await MemberModel.findOne({ userId }).session(
-        session
+        session,
       );
       // Update the user's currentWorkspace
       user.currentWorkspace = memberWorkspace
