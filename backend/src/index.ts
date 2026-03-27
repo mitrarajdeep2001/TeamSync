@@ -28,7 +28,7 @@ const BASE_PATH = config.BASE_PATH;
 app.use(express.json());
 
 app.use(express.urlencoded({ extended: true }));
-
+app.set("trust proxy", 1);
 app.use(
   cors({
     origin: config.FRONTEND_ORIGIN,
@@ -41,9 +41,9 @@ app.use(
     name: "session",
     keys: [config.SESSION_SECRET],
     maxAge: 24 * 60 * 60 * 1000,
-    secure: config.NODE_ENV === "production",
+    secure: true,
     httpOnly: true,
-    sameSite: config.NODE_ENV === "production" ? "none" : "lax",
+    sameSite:  "none",
   })
 );
 
