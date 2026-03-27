@@ -136,12 +136,29 @@ authRoutes.get(
   })
 );
 
-authRoutes.get(
-  "/google/callback",
-  passport.authenticate("google", {
-    failureRedirect: failedUrl,
-  }),
-  googleLoginCallback
-);
+// authRoutes.get(
+//   "/google/callback",
+//   passport.authenticate("google", {
+//     failureRedirect: failedUrl,
+//   }),
+//   googleLoginCallback
+// );
+authRoutes.get("/google/callback", (req, res, next) => {
+  passport.authenticate("google", (err: any, user: any) => {
+    if (err || !user) {
+      return res.redirect(failedUrl);
+    }
+
+    req.login(user, (err) => {
+      if (err) return next(err);
+
+      // no session.save here
+
+      return res.redirect(
+        `${config.FRONTEND_ORIGIN}/workspace/${user.currentWorkspace}`
+      );
+    });
+  })(req, res, next);
+});
 
 export default authRoutes;
