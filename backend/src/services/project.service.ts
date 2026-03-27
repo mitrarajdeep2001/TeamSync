@@ -43,7 +43,7 @@ export const getProjectsInWorkspaceService = async (
   /** 1️⃣ Try Redis first */
   const cached = await redis.get(cacheKey);
 
-  if (cached) {    
+  if (cached) {
     return {
       ...JSON.parse(cached),
       source: "cache",
@@ -205,7 +205,7 @@ export const updateProjectService = async (
   if (description) project.description = description;
 
   await project.save();
-
+  await redis.incr(`workspace:projects:${workspaceId}:version`);
   return { project };
 };
 
@@ -230,5 +230,6 @@ export const deleteProjectService = async (
     project: project._id,
   });
 
+  await redis.incr(`workspace:projects:${workspaceId}:version`);
   return project;
 };

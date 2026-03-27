@@ -98,6 +98,8 @@ export const updateTaskService = async (
     throw new BadRequestException("Failed to update task");
   }
 
+  await redis.del(`workspace:analytics:${workspaceId}`);
+  await redis.del(`workspace:project:analytics:${workspaceId}:${projectId}`);
   return { updatedTask };
 };
 
@@ -215,5 +217,7 @@ export const deleteTaskService = async (
     );
   }
 
+  await redis.del(`workspace:analytics:${workspaceId}`);
+  await redis.del(`workspace:project:analytics:${workspaceId}:${task.project._id}`);
   return;
 };

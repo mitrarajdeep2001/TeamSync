@@ -78,7 +78,7 @@ const SignUp = () => {
           className="flex items-center gap-2 self-center font-medium"
         >
           <Logo />
-          Team Sync.
+          TeamSync.
         </Link>
         <div className="flex flex-col gap-6">
           <Card>
@@ -178,7 +178,7 @@ const SignUp = () => {
                     </div>
                     <div className="text-center text-sm">
                       Already have an account?{" "}
-                      <Link to="/" className="underline underline-offset-4">
+                      <Link to="/sign-in" className="underline underline-offset-4">
                         Sign in
                       </Link>
                     </div>

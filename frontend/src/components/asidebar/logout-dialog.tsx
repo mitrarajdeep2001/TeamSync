@@ -59,11 +59,11 @@ const LogoutDialog = (props: {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button disabled={isPending} type="button" onClick={handleLogout}>
+            <Button disabled={isPending} type="button" variant={"destructive"} onClick={handleLogout}>
               {isPending && <Loader className="animate-spin" />}
               Sign out
             </Button>
-            <Button type="button" onClick={() => setIsOpen(false)}>
+            <Button type="button" variant={"outline"} onClick={() => setIsOpen(false)}>
               Cancel
             </Button>
           </DialogFooter>

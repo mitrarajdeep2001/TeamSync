@@ -49,7 +49,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
           <Button variant="outline" onClick={handleClose}>
             {cancelText}
           </Button>
-          <Button onClick={onConfirm} disabled={isLoading}>
+          <Button onClick={onConfirm} variant={"destructive"} disabled={isLoading}>
             {isLoading && <Loader className="w-4 h-4 animate-spin" />}
             {confirmText}
           </Button>
