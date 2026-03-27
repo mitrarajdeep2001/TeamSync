@@ -6,6 +6,8 @@ const appConfig = () => ({
   BASE_PATH: getEnv("BASE_PATH", "/api"),
   MONGO_URI: getEnv("MONGO_URI", ""),
   REDIS_URL: getEnv("REDIS_URL", ""),
+  UPSTASH_REDIS_REST_URL: getEnv("UPSTASH_REDIS_REST_URL", ""),
+  UPSTASH_REDIS_REST_TOKEN: getEnv("UPSTASH_REDIS_REST_TOKEN", ""),
 
   SESSION_SECRET: getEnv("SESSION_SECRET"),
   SESSION_EXPIRES_IN: getEnv("SESSION_EXPIRES_IN"),

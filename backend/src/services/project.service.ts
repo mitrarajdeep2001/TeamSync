@@ -41,11 +41,11 @@ export const getProjectsInWorkspaceService = async (
   const cacheKey = `workspace:projects:${workspaceId}:v${version}:page:${pageNumber}:size:${pageSize}`;
 
   /** 1️⃣ Try Redis first */
-  const cached = await redis.get(cacheKey);
+  const cached = await redis.get<typeof response>(cacheKey);
 
   if (cached) {
     return {
-      ...JSON.parse(cached),
+      ...cached,
       source: "cache",
     };
   }
@@ -75,7 +75,9 @@ export const getProjectsInWorkspaceService = async (
   };
 
   /** 3️⃣ Store in Redis */
-  await redis.set(cacheKey, JSON.stringify(response), "EX", config.DEFAULT_TTL);
+  await redis.set(cacheKey, JSON.stringify(response), {
+    ex: config.DEFAULT_TTL,
+  });
 
   return {
     ...response,
@@ -108,11 +110,11 @@ export const getProjectAnalyticsService = async (
   const cacheKey = `workspace:project:analytics:${workspaceId}:${projectId}`;
 
   /** 1️⃣ Try Redis first */
-  const cached = await redis.get(cacheKey);
+  const cached = await redis.get<typeof analytics>(cacheKey);
 
   if (cached) {
     return {
-      analytics: JSON.parse(cached),
+      analytics: cached,
       source: "cache",
     };
   }
@@ -166,12 +168,9 @@ export const getProjectAnalyticsService = async (
   };
 
   /** 4️⃣ Store in Redis */
-  await redis.set(
-    cacheKey,
-    JSON.stringify(analytics),
-    "EX",
-    config.DEFAULT_TTL,
-  );
+  await redis.set(cacheKey, JSON.stringify(analytics), {
+    ex: config.DEFAULT_TTL,
+  });
 
   return {
     analytics,

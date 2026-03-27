@@ -120,11 +120,11 @@ export const getWorkspaceAnalyticsService = async (workspaceId: string) => {
   const cacheKey = `workspace:analytics:${workspaceId}`;
 
   /** 1️⃣ Try cache first */
-  const cachedAnalytics = await redis.get(cacheKey);
+  const cachedAnalytics = await redis.get<typeof analytics>(cacheKey);
 
   if (cachedAnalytics) {
     return {
-      analytics: JSON.parse(cachedAnalytics),
+      analytics: cachedAnalytics,
       source: "cache",
     };
   }
@@ -152,12 +152,9 @@ export const getWorkspaceAnalyticsService = async (workspaceId: string) => {
   };
 
   /** 3️⃣ Store in Redis */
-  await redis.set(
-    cacheKey,
-    JSON.stringify(analytics),
-    "EX",
-    config.DEFAULT_TTL,
-  );
+  await redis.set(cacheKey, JSON.stringify(analytics), {
+    ex: config.DEFAULT_TTL,
+  });
 
   return {
     analytics,
