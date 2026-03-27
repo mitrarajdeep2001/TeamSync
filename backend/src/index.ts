@@ -30,6 +30,13 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use(
+  cors({
+    origin: config.FRONTEND_ORIGIN,
+    credentials: true,
+  })
+);
+
+app.use(
   session({
     name: "session",
     keys: [config.SESSION_SECRET],
@@ -37,18 +44,11 @@ app.use(
     secure: config.NODE_ENV === "production",
     httpOnly: true,
     sameSite: config.NODE_ENV === "production" ? "none" : "lax",
-  }),
+  })
 );
 
 app.use(passport.initialize());
 app.use(passport.session());
-
-app.use(
-  cors({
-    origin: config.FRONTEND_ORIGIN,
-    credentials: true,
-  }),
-);
 
 
 app.get("/", (req, res) => {
