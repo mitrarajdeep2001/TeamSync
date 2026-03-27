@@ -5,7 +5,6 @@ const appConfig = () => ({
   PORT: getEnv("PORT", "5000"),
   BASE_PATH: getEnv("BASE_PATH", "/api"),
   MONGO_URI: getEnv("MONGO_URI", ""),
-  REDIS_URL: getEnv("REDIS_URL", ""),
   UPSTASH_REDIS_REST_URL: getEnv("UPSTASH_REDIS_REST_URL", ""),
   UPSTASH_REDIS_REST_TOKEN: getEnv("UPSTASH_REDIS_REST_TOKEN", ""),
 
