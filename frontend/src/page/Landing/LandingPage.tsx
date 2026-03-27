@@ -4,8 +4,6 @@ import {
   CheckCircle,
   Users,
   BarChart,
-  Zap,
-  Shield,
   Calendar,
   Star,
   ArrowRight,
