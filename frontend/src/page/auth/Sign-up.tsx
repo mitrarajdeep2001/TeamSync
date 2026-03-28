@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
+import { useState } from "react";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,25 +25,35 @@ import Logo from "@/components/logo";
 import { useMutation } from "@tanstack/react-query";
 import { registerMutationFn } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
-import { Loader } from "lucide-react";
+import { Eye, EyeOff, Loader } from "lucide-react";
 
 const SignUp = () => {
   const navigate = useNavigate();
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const { mutate, isPending } = useMutation({
     mutationFn: registerMutationFn,
   });
-  const formSchema = z.object({
-    name: z.string().trim().min(1, {
-      message: "Name is required",
-    }),
-    email: z.string().trim().email("Invalid email address").min(1, {
-      message: "Workspace name is required",
-    }),
-    password: z.string().trim().min(1, {
-      message: "Password is required",
-    }),
-  });
+  const formSchema = z
+    .object({
+      name: z.string().trim().min(1, {
+        message: "Name is required",
+      }),
+      email: z.string().trim().email("Invalid email address").min(1, {
+        message: "Workspace name is required",
+      }),
+      password: z.string().trim().min(1, {
+        message: "Password is required",
+      }),
+      confirmPassword: z.string().trim().min(1, {
+        message: "Confirm password is required",
+      }),
+    })
+    .refine((data) => data.password === data.confirmPassword, {
+      message: "Passwords must match",
+      path: ["confirmPassword"],
+    });
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -50,6 +61,7 @@ const SignUp = () => {
       name: "",
       email: "",
       password: "",
+      confirmPassword: "",
     },
   });
 
@@ -59,11 +71,10 @@ const SignUp = () => {
       onSuccess: () => {
         navigate("/");
       },
-      onError: (error) => {
-        console.log(error);
+      onError: (error: any) => {
         toast({
           title: "Error",
-          description: error.message,
+          description: error.response?.data?.message,
           variant: "destructive",
         });
       },
@@ -155,11 +166,65 @@ const SignUp = () => {
                                 Password
                               </FormLabel>
                               <FormControl>
-                                <Input
-                                  type="password"
-                                  className="!h-[48px]"
-                                  {...field}
-                                />
+                                <div className="relative">
+                                  <Input
+                                    type={showPassword ? "text" : "password"}
+                                    className="!h-[48px]"
+                                    {...field}
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setShowPassword((prev) => !prev)
+                                    }
+                                    className="absolute inset-y-0 right-3 flex items-center text-muted-foreground"
+                                  >
+                                    {showPassword ? (
+                                      <EyeOff className="h-4 w-4" />
+                                    ) : (
+                                      <Eye className="h-4 w-4" />
+                                    )}
+                                  </button>
+                                </div>
+                              </FormControl>
+
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <FormField
+                          control={form.control}
+                          name="confirmPassword"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="dark:text-[#f1f7feb5] text-sm">
+                                Confirm Password
+                              </FormLabel>
+                              <FormControl>
+                                <div className="relative">
+                                  <Input
+                                    type={
+                                      showConfirmPassword ? "text" : "password"
+                                    }
+                                    className="!h-[48px]"
+                                    {...field}
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setShowConfirmPassword((prev) => !prev)
+                                    }
+                                    className="absolute inset-y-0 right-3 flex items-center text-muted-foreground"
+                                  >
+                                    {showConfirmPassword ? (
+                                      <EyeOff className="h-4 w-4" />
+                                    ) : (
+                                      <Eye className="h-4 w-4" />
+                                    )}
+                                  </button>
+                                </div>
                               </FormControl>
 
                               <FormMessage />
@@ -178,7 +243,10 @@ const SignUp = () => {
                     </div>
                     <div className="text-center text-sm">
                       Already have an account?{" "}
-                      <Link to="/sign-in" className="underline underline-offset-4">
+                      <Link
+                        to="/sign-in"
+                        className="underline underline-offset-4"
+                      >
                         Sign in
                       </Link>
                     </div>
